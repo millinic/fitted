@@ -3,22 +3,18 @@ import { Providers } from "@/components/Providers"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Fitted — Your Personal Style, Expertly Curated",
+  title: "Fitted — Your Personal Style Guide",
   description:
-    "A personalized men's style platform that delivers an expert-curated wardrobe guide. Look consistently well-dressed without becoming fashion obsessed.",
-  keywords: [
-    "men's style",
-    "personal styling",
-    "wardrobe guide",
-    "fashion consultation",
-    "style assessment",
-  ],
+    "A personalized men's style platform that delivers an expert-curated wardrobe guide — so you can look consistently well-dressed without becoming fashion obsessed.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://fitted.style"
+  ),
   openGraph: {
-    title: "Fitted — Your Personal Style, Expertly Curated",
+    title: "Fitted — Your Personal Style Guide",
     description:
-      "A personalized men's style platform that delivers an expert-curated wardrobe guide.",
-    type: "website",
+      "Expert-curated, personalized wardrobe recommendations for men who want to dress better without the effort.",
     siteName: "Fitted",
+    type: "website",
   },
 }
 
@@ -37,7 +33,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>

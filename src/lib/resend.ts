@@ -1,14 +1,12 @@
 import { Resend } from "resend"
 
-let resendInstance: Resend | null = null
+let _resend: Resend | undefined
 
 export function getResend(): Resend {
-  if (!resendInstance) {
+  if (!_resend) {
     const key = process.env.RESEND_API_KEY
-    if (!key) {
-      throw new Error("RESEND_API_KEY environment variable is not set")
-    }
-    resendInstance = new Resend(key)
+    if (!key) throw new Error("RESEND_API_KEY is not set")
+    _resend = new Resend(key)
   }
-  return resendInstance
+  return _resend
 }

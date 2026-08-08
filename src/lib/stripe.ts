@@ -1,16 +1,12 @@
 import Stripe from "stripe"
 
-let stripeInstance: Stripe | null = null
+let _stripe: Stripe | undefined
 
 export function getStripe(): Stripe {
-  if (!stripeInstance) {
+  if (!_stripe) {
     const key = process.env.STRIPE_SECRET_KEY
-    if (!key) {
-      throw new Error("STRIPE_SECRET_KEY environment variable is not set")
-    }
-    stripeInstance = new Stripe(key, {
-      apiVersion: "2024-12-18.acacia" as Stripe.LatestApiVersion,
-    })
+    if (!key) throw new Error("STRIPE_SECRET_KEY is not set")
+    _stripe = new Stripe(key, { apiVersion: "2024-12-18.acacia" as any })
   }
-  return stripeInstance
+  return _stripe
 }

@@ -1,9 +1,9 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { forwardRef } from "react"
+import { forwardRef, type InputHTMLAttributes } from "react"
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
   hint?: string
@@ -11,26 +11,29 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, hint, id, ...props }, ref) => {
+    const inputId = id || label?.toLowerCase().replace(/\s+/g, "-")
+
     return (
       <div className="space-y-1.5">
         {label && (
-          <label htmlFor={id} className="block text-sm font-medium text-neutral-700">
+          <label htmlFor={inputId} className="block text-sm font-medium text-neutral-700">
             {label}
           </label>
         )}
         <input
           ref={ref}
-          id={id}
+          id={inputId}
           className={cn(
-            "flex h-11 w-full rounded-lg border bg-white px-4 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors",
-            "focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent",
-            error ? "border-red-400" : "border-neutral-200 hover:border-neutral-300",
+            "w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition-colors duration-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
+            error && "border-error focus:border-error focus:ring-red-100",
             className
           )}
           {...props}
         />
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        {hint && !error && <p className="text-xs text-neutral-500">{hint}</p>}
+        {hint && !error && (
+          <p className="text-sm text-neutral-500">{hint}</p>
+        )}
+        {error && <p className="text-sm text-error">{error}</p>}
       </div>
     )
   }

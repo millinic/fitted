@@ -1,142 +1,117 @@
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm"
 import type {
-  users,
-  styleAssessments,
-  styleProfileSummaries,
-  payments,
-  styleGuides,
-  guideFeedback,
-  knowledgeBaseEntries,
+  GuideRecommendation,
+  GuideLookbook,
 } from "@/lib/db/schema"
 
-// ─── Database Model Types ──────────────────────────────────────────
+// ─── Assessment Types ───────────────────────────────────────────────────────
 
-export type User = InferSelectModel<typeof users>
-export type NewUser = InferInsertModel<typeof users>
+export type BodyType =
+  | "slim"
+  | "athletic"
+  | "average"
+  | "broad"
+  | "stocky"
+  | "tall_slim"
+  | "tall_broad"
 
-export type StyleAssessment = InferSelectModel<typeof styleAssessments>
-export type NewStyleAssessment = InferInsertModel<typeof styleAssessments>
-
-export type StyleProfileSummary = InferSelectModel<typeof styleProfileSummaries>
-export type NewStyleProfileSummary = InferInsertModel<typeof styleProfileSummaries>
-
-export type Payment = InferSelectModel<typeof payments>
-export type NewPayment = InferInsertModel<typeof payments>
-
-export type StyleGuide = InferSelectModel<typeof styleGuides>
-export type NewStyleGuide = InferInsertModel<typeof styleGuides>
-
-export type GuideFeedback = InferSelectModel<typeof guideFeedback>
-export type NewGuideFeedback = InferInsertModel<typeof guideFeedback>
-
-export type KnowledgeBaseEntry = InferSelectModel<typeof knowledgeBaseEntries>
-export type NewKnowledgeBaseEntry = InferInsertModel<typeof knowledgeBaseEntries>
-
-// ─── Assessment Form Types ─────────────────────────────────────────
-
-export type BodyType = "slim" | "athletic" | "average" | "stocky" | "tall_lean" | "broad"
 export type FitPreference = "slim" | "tailored" | "relaxed" | "oversized"
-export type BudgetRange = "moderate" | "premium" | "luxury"
+
+export type BudgetRange = "moderate" | "premium" | "luxury" | "mixed"
+
+export type GuideStatus =
+  | "generating"
+  | "pending_review"
+  | "approved"
+  | "revision_requested"
+  | "delivered"
 
 export interface AssessmentFormData {
+  // Basics
+  firstName: string
+  lastName: string
+  age: number | null
+  location: string
+
   // Measurements
-  waistSize: string
-  chestSize: string
-  inseam: string
-  typicalShirtSize: string
-  typicalPantSize: string
+  heightFeet: number | null
+  heightInches: number | null
+  waist: number | null
+  chest: number | null
+  inseam: number | null
   shoeSize: string
-  height: string
+  typicalTopSize: string
+  typicalBottomSize: string
 
   // Body & Fit
-  bodyType: BodyType | ""
-  fitPreference: FitPreference | ""
+  bodyType: BodyType | null
+  fitPreference: FitPreference | null
 
-  // Brand Fit References
+  // Brand fit references
   brandFitReferences: string[]
 
   // Lifestyle
   lifestyleContext: string[]
   lifestyleFrequency: Record<string, string>
 
-  // Style
-  styleGoals: string[]
+  // Style preferences
+  styleGoal: string
   brandsLiked: string[]
   styleReferences: string[]
   colorPreferences: string[]
   colorsToAvoid: string[]
-
-  // Wardrobe & Budget
   wardrobeGaps: string[]
-  budgetRange: BudgetRange | ""
+
+  // Budget & shopping
+  budgetRange: BudgetRange | null
+  monthlyBudget: number | null
   shoppingBehavior: string
 
-  // Notes
+  // Additional
   additionalNotes: string
 }
 
-// ─── Style Profile Summary Types ───────────────────────────────────
+// ─── Style Profile (pre-paywall) ────────────────────────────────────────────
 
-export interface StyleProfileSummaryContent {
-  styleArchetype: string
-  aestheticDescription: string
-  keyPrinciples: string[]
-  recommendedBrands: string[]
+export interface StyleProfileSummary {
+  headline: string
+  body: string
+  archetype: string
+  keyTraits: string[]
   colorPalette: string[]
-  fitGuidance: string
+  brandPreview: string[]
 }
 
-// ─── Style Guide Types ─────────────────────────────────────────────
-
-export interface GuideItem {
-  name: string
-  brand: string
-  description: string
-  reasoning: string
-  purchaseUrl: string
-  affiliateUrl?: string
-  imageUrl?: string
-  priceRange: string
-}
-
-export interface GuideSection {
-  category: string
-  items: GuideItem[]
-}
-
-export interface Lookbook {
-  name: string
-  description: string
-  items: string[]
-  imageUrl?: string
-}
+// ─── Style Guide (post-payment) ─────────────────────────────────────────────
 
 export interface StyleGuideContent {
-  sections: GuideSection[]
-  lookbooks: Lookbook[]
-  generalTips: string[]
+  introduction: string
+  recommendations: GuideRecommendation[]
+  lookbooks: GuideLookbook[]
+  generalAdvice: string
 }
 
-// ─── Guide Status ──────────────────────────────────────────────────
+// ─── Payment ────────────────────────────────────────────────────────────────
 
-export type GuideStatus =
-  | "generating"
-  | "pending_review"
-  | "approved"
-  | "rejected"
-  | "delivered"
-
-export type PaymentStatus = "pending" | "completed" | "failed" | "refunded"
-
-// ─── API Response Types ────────────────────────────────────────────
-
-export interface ApiResponse<T = unknown> {
-  success: boolean
-  data?: T
-  error?: string
+export interface PaymentIntent {
+  clientSecret: string
+  paymentIntentId: string
+  amount: number
+  currency: string
 }
 
-// ─── Session Extension ─────────────────────────────────────────────
+// ─── Review Queue (Founder) ─────────────────────────────────────────────────
+
+export interface ReviewQueueItem {
+  guideId: string
+  assessmentId: string
+  userName: string
+  userEmail: string
+  status: GuideStatus
+  createdAt: Date
+  styleArchetype: string | null
+}
+
+// ─── Session Extension ──────────────────────────────────────────────────────
 
 declare module "next-auth" {
   interface Session {
@@ -153,4 +128,20 @@ declare module "next-auth/jwt" {
   interface JWT {
     sub: string
   }
+}
+
+// ─── API Response Types ─────────────────────────────────────────────────────
+
+export interface ApiResponse<T = unknown> {
+  success: boolean
+  data?: T
+  error?: string
+  message?: string
+}
+
+export interface PaginatedResponse<T = unknown> extends ApiResponse<T[]> {
+  total: number
+  page: number
+  pageSize: number
+  hasMore: boolean
 }

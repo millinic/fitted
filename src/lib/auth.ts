@@ -1,24 +1,14 @@
 import type { NextAuthOptions } from "next-auth"
 import { DrizzleAdapter } from "@auth/drizzle-adapter"
 import GoogleProvider from "next-auth/providers/google"
+import { getDb } from "@/lib/db"
 
 export const authOptions: NextAuthOptions = {
-  adapter: (() => {
-    try {
-      // Only create the real adapter if DATABASE_URL is available
-      if (process.env.DATABASE_URL) {
-        const { db } = require("@/lib/db")
-        return DrizzleAdapter(db) as any
-      }
-    } catch {
-      // During build, adapter is not needed
-    }
-    return undefined as any
-  })(),
+  adapter: DrizzleAdapter(getDb()) as any,
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
   session: { strategy: "jwt" },

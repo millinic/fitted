@@ -3,9 +3,9 @@ import {
   text,
   timestamp,
   uuid,
+  jsonb,
   integer,
   boolean,
-  jsonb,
   pgEnum,
   varchar,
   primaryKey,
@@ -13,29 +13,27 @@ import {
 import { relations } from "drizzle-orm"
 import type { AdapterAccount } from "@auth/core/adapters"
 
-// ─── NextAuth Tables ───────────────────────────────────────────────
+// ─── NextAuth Required Tables ───────────────────────────────────────────────
 
-export const users = pgTable("user", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
   name: text("name"),
-  email: text("email").notNull(),
-  emailVerified: timestamp("emailVerified", { mode: "date" }),
+  email: text("email").notNull().unique(),
+  emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 })
 
 export const accounts = pgTable(
-  "account",
+  "accounts",
   {
-    userId: text("userId")
+    userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     type: text("type").$type<AdapterAccount["type"]>().notNull(),
     provider: text("provider").notNull(),
-    providerAccountId: text("providerAccountId").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
     refresh_token: text("refresh_token"),
     access_token: text("access_token"),
     expires_at: integer("expires_at"),
@@ -49,16 +47,16 @@ export const accounts = pgTable(
   ]
 )
 
-export const sessions = pgTable("session", {
-  sessionToken: text("sessionToken").primaryKey(),
-  userId: text("userId")
+export const sessions = pgTable("sessions", {
+  sessionToken: text("session_token").primaryKey(),
+  userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires", { mode: "date" }).notNull(),
 })
 
 export const verificationTokens = pgTable(
-  "verificationToken",
+  "verification_tokens",
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
@@ -67,15 +65,16 @@ export const verificationTokens = pgTable(
   (vt) => [primaryKey({ columns: [vt.identifier, vt.token] })]
 )
 
-// ─── Enums ─────────────────────────────────────────────────────────
+// ─── Style Assessment & Guide Tables ────────────────────────────────────────
 
 export const bodyTypeEnum = pgEnum("body_type", [
   "slim",
   "athletic",
   "average",
-  "stocky",
-  "tall_lean",
   "broad",
+  "stocky",
+  "tall_slim",
+  "tall_broad",
 ])
 
 export const fitPreferenceEnum = pgEnum("fit_preference", [
@@ -89,68 +88,64 @@ export const budgetRangeEnum = pgEnum("budget_range", [
   "moderate",
   "premium",
   "luxury",
+  "mixed",
 ])
 
 export const guideStatusEnum = pgEnum("guide_status", [
   "generating",
   "pending_review",
   "approved",
-  "rejected",
+  "revision_requested",
   "delivered",
 ])
 
-export const paymentStatusEnum = pgEnum("payment_status", [
-  "pending",
-  "completed",
-  "failed",
-  "refunded",
-])
+export const assessments = pgTable("assessments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
 
-// ─── Style Assessment ──────────────────────────────────────────────
+  // Contact / identity
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  age: integer("age"),
+  location: text("location"),
 
-export const styleAssessments = pgTable("style_assessment", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+  // Measurements & sizing
+  heightFeet: integer("height_feet"),
+  heightInches: integer("height_inches"),
+  waist: integer("waist"),
+  chest: integer("chest"),
+  inseam: integer("inseam"),
+  shoeSize: text("shoe_size"),
+  typicalTopSize: text("typical_top_size"),
+  typicalBottomSize: text("typical_bottom_size"),
 
-  // Measurements & Sizing
-  waistSize: varchar("waist_size", { length: 10 }),
-  chestSize: varchar("chest_size", { length: 10 }),
-  inseam: varchar("inseam", { length: 10 }),
-  typicalShirtSize: varchar("typical_shirt_size", { length: 10 }),
-  typicalPantSize: varchar("typical_pant_size", { length: 10 }),
-  shoeSize: varchar("shoe_size", { length: 10 }),
-  height: varchar("height", { length: 10 }),
-
-  // Body & Fit
+  // Body & fit
   bodyType: bodyTypeEnum("body_type"),
   fitPreference: fitPreferenceEnum("fit_preference"),
 
-  // Brand Fit References — brands that generally fit well
+  // Brand fit references — brands that fit them well
   brandFitReferences: jsonb("brand_fit_references").$type<string[]>(),
 
-  // Lifestyle Context
+  // Lifestyle
   lifestyleContext: jsonb("lifestyle_context").$type<string[]>(),
   lifestyleFrequency: jsonb("lifestyle_frequency").$type<
     Record<string, string>
   >(),
 
-  // Style
-  styleGoals: jsonb("style_goals").$type<string[]>(),
+  // Style preferences
+  styleGoal: text("style_goal"),
   brandsLiked: jsonb("brands_liked").$type<string[]>(),
   styleReferences: jsonb("style_references").$type<string[]>(),
   colorPreferences: jsonb("color_preferences").$type<string[]>(),
   colorsToAvoid: jsonb("colors_to_avoid").$type<string[]>(),
-
-  // Wardrobe
   wardrobeGaps: jsonb("wardrobe_gaps").$type<string[]>(),
 
-  // Budget & Shopping
+  // Budget & shopping
   budgetRange: budgetRangeEnum("budget_range"),
+  monthlyBudget: integer("monthly_budget"),
   shoppingBehavior: text("shopping_behavior"),
 
-  // Additional notes
+  // Additional context
   additionalNotes: text("additional_notes"),
 
   // Status
@@ -159,222 +154,200 @@ export const styleAssessments = pgTable("style_assessment", {
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 })
 
-// ─── Style Profile Summary (pre-paywall) ──────────────────────────
-
-export const styleProfileSummaries = pgTable("style_profile_summary", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+export const styleProfiles = pgTable("style_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
   assessmentId: uuid("assessment_id")
     .notNull()
-    .references(() => styleAssessments.id, { onDelete: "cascade" }),
+    .references(() => assessments.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
 
-  // AI-generated summary content
-  summaryContent: jsonb("summary_content").$type<{
-    styleArchetype: string
-    aestheticDescription: string
-    keyPrinciples: string[]
-    recommendedBrands: string[]
-    colorPalette: string[]
-    fitGuidance: string
-  }>(),
+  // AI-generated summary shown before paywall
+  summaryHeadline: text("summary_headline"),
+  summaryBody: text("summary_body"),
+  styleArchetype: text("style_archetype"),
+  keyTraits: jsonb("key_traits").$type<string[]>(),
+  colorPalette: jsonb("color_palette").$type<string[]>(),
+  brandRecommendationPreview: jsonb("brand_recommendation_preview").$type<
+    string[]
+  >(),
 
-  generatedAt: timestamp("generated_at", { mode: "date" }),
+  // Raw AI response for debugging
+  rawAiResponse: jsonb("raw_ai_response"),
+
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 })
 
-// ─── Payments ──────────────────────────────────────────────────────
-
-export const payments = pgTable("payment", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+export const styleGuides = pgTable("style_guides", {
+  id: uuid("id").defaultRandom().primaryKey(),
   assessmentId: uuid("assessment_id")
     .notNull()
-    .references(() => styleAssessments.id, { onDelete: "cascade" }),
-
-  stripePaymentIntentId: text("stripe_payment_intent_id"),
-  stripeSessionId: text("stripe_session_id"),
-  amount: integer("amount").notNull(), // in cents
-  currency: varchar("currency", { length: 3 }).default("usd").notNull(),
-  status: paymentStatusEnum("status").default("pending").notNull(),
-
-  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
-})
-
-// ─── Style Guides (post-payment, AI-generated) ────────────────────
-
-export const styleGuides = pgTable("style_guide", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  assessmentId: uuid("assessment_id")
-    .notNull()
-    .references(() => styleAssessments.id, { onDelete: "cascade" }),
-  paymentId: uuid("payment_id")
-    .notNull()
-    .references(() => payments.id, { onDelete: "cascade" }),
+    .references(() => assessments.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  styleProfileId: uuid("style_profile_id").references(
+    () => styleProfiles.id,
+    { onDelete: "set null" }
+  ),
 
   // Guide content
-  guideContent: jsonb("guide_content").$type<{
-    sections: Array<{
-      category: string
-      items: Array<{
-        name: string
-        brand: string
-        description: string
-        reasoning: string
-        purchaseUrl: string
-        affiliateUrl?: string
-        imageUrl?: string
-        priceRange: string
-      }>
-    }>
-    lookbooks: Array<{
-      name: string
-      description: string
-      items: string[]
-      imageUrl?: string
-    }>
-    generalTips: string[]
-  }>(),
+  introduction: text("introduction"),
+  recommendations: jsonb("recommendations").$type<GuideRecommendation[]>(),
+  lookbooks: jsonb("lookbooks").$type<GuideLookbook[]>(),
+  generalAdvice: text("general_advice"),
 
-  // Review
+  // Raw AI response for debugging
+  rawAiResponse: jsonb("raw_ai_response"),
+
+  // Review status
   status: guideStatusEnum("status").default("generating").notNull(),
   founderNotes: text("founder_notes"),
   reviewedAt: timestamp("reviewed_at", { mode: "date" }),
-
-  // Delivery
   deliveredAt: timestamp("delivered_at", { mode: "date" }),
-  emailSentAt: timestamp("email_sent_at", { mode: "date" }),
 
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 })
 
-// ─── User Feedback ─────────────────────────────────────────────────
+// ─── Payments ───────────────────────────────────────────────────────────────
 
-export const guideFeedback = pgTable("guide_feedback", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  guideId: uuid("guide_id")
-    .notNull()
-    .references(() => styleGuides.id, { onDelete: "cascade" }),
+export const payments = pgTable("payments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  assessmentId: uuid("assessment_id").references(() => assessments.id, {
+    onDelete: "set null",
+  }),
 
-  overallRating: integer("overall_rating"), // 1-5
-  personalizedFeeling: integer("personalized_feeling"), // 1-5
-  wouldRefer: boolean("would_refer"),
-  flaggedItems: jsonb("flagged_items").$type<
-    Array<{
-      itemName: string
-      reason: string
-    }>
-  >(),
-  freeformFeedback: text("freeform_feedback"),
+  stripePaymentIntentId: text("stripe_payment_intent_id").unique(),
+  stripeCustomerId: text("stripe_customer_id"),
+  amount: integer("amount").notNull(), // in cents
+  currency: varchar("currency", { length: 3 }).default("usd").notNull(),
+  status: text("status").notNull(), // succeeded, pending, failed
+  receiptEmail: text("receipt_email"),
 
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 })
 
-// ─── Knowledge Base ────────────────────────────────────────────────
+// ─── Knowledge Base ─────────────────────────────────────────────────────────
 
-export const knowledgeBaseEntries = pgTable("knowledge_base_entry", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  category: varchar("category", { length: 100 }).notNull(), // 'philosophy', 'brand', 'style_icon', 'principle', 'publication'
-  title: varchar("title", { length: 255 }).notNull(),
+export const knowledgeBaseEntries = pgTable("knowledge_base_entries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  category: text("category").notNull(), // philosophy, brands, icons, principles
+  title: text("title").notNull(),
   content: text("content").notNull(),
-  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  metadata: jsonb("metadata"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 })
 
-// ─── Relations ─────────────────────────────────────────────────────
+// ─── User Feedback ──────────────────────────────────────────────────────────
+
+export const guideFeedback = pgTable("guide_feedback", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  guideId: uuid("guide_id")
+    .notNull()
+    .references(() => styleGuides.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+
+  overallRating: integer("overall_rating"), // 1-5
+  comments: text("comments"),
+  flaggedItems: jsonb("flagged_items").$type<string[]>(),
+
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+})
+
+// ─── Relations ──────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
-  assessments: many(styleAssessments),
-  profileSummaries: many(styleProfileSummaries),
-  payments: many(payments),
+  assessments: many(assessments),
   styleGuides: many(styleGuides),
-  feedback: many(guideFeedback),
+  payments: many(payments),
 }))
 
-export const accountsRelations = relations(accounts, ({ one }) => ({
-  user: one(users, { fields: [accounts.userId], references: [users.id] }),
+export const assessmentsRelations = relations(assessments, ({ one, many }) => ({
+  user: one(users, {
+    fields: [assessments.userId],
+    references: [users.id],
+  }),
+  styleProfile: one(styleProfiles),
+  styleGuides: many(styleGuides),
+  payments: many(payments),
 }))
 
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, { fields: [sessions.userId], references: [users.id] }),
-}))
-
-export const styleAssessmentsRelations = relations(
-  styleAssessments,
-  ({ one, many }) => ({
-    user: one(users, {
-      fields: [styleAssessments.userId],
-      references: [users.id],
-    }),
-    profileSummaries: many(styleProfileSummaries),
-    payments: many(payments),
-    styleGuides: many(styleGuides),
-  })
-)
-
-export const styleProfileSummariesRelations = relations(
-  styleProfileSummaries,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [styleProfileSummaries.userId],
-      references: [users.id],
-    }),
-    assessment: one(styleAssessments, {
-      fields: [styleProfileSummaries.assessmentId],
-      references: [styleAssessments.id],
-    }),
-  })
-)
-
-export const paymentsRelations = relations(payments, ({ one }) => ({
-  user: one(users, { fields: [payments.userId], references: [users.id] }),
-  assessment: one(styleAssessments, {
-    fields: [payments.assessmentId],
-    references: [styleAssessments.id],
+export const styleProfilesRelations = relations(styleProfiles, ({ one }) => ({
+  assessment: one(assessments, {
+    fields: [styleProfiles.assessmentId],
+    references: [assessments.id],
+  }),
+  user: one(users, {
+    fields: [styleProfiles.userId],
+    references: [users.id],
   }),
 }))
 
 export const styleGuidesRelations = relations(
   styleGuides,
   ({ one, many }) => ({
+    assessment: one(assessments, {
+      fields: [styleGuides.assessmentId],
+      references: [assessments.id],
+    }),
     user: one(users, {
       fields: [styleGuides.userId],
       references: [users.id],
     }),
-    assessment: one(styleAssessments, {
-      fields: [styleGuides.assessmentId],
-      references: [styleAssessments.id],
-    }),
-    payment: one(payments, {
-      fields: [styleGuides.paymentId],
-      references: [payments.id],
+    styleProfile: one(styleProfiles, {
+      fields: [styleGuides.styleProfileId],
+      references: [styleProfiles.id],
     }),
     feedback: many(guideFeedback),
   })
 )
 
-export const guideFeedbackRelations = relations(guideFeedback, ({ one }) => ({
+export const paymentsRelations = relations(payments, ({ one }) => ({
   user: one(users, {
-    fields: [guideFeedback.userId],
+    fields: [payments.userId],
     references: [users.id],
   }),
+  assessment: one(assessments, {
+    fields: [payments.assessmentId],
+    references: [assessments.id],
+  }),
+}))
+
+export const guideFeedbackRelations = relations(guideFeedback, ({ one }) => ({
   guide: one(styleGuides, {
     fields: [guideFeedback.guideId],
     references: [styleGuides.id],
   }),
+  user: one(users, {
+    fields: [guideFeedback.userId],
+    references: [users.id],
+  }),
 }))
+
+// ─── JSON Types ─────────────────────────────────────────────────────────────
+
+export type GuideRecommendation = {
+  id: string
+  category: string // e.g. "tops", "bottoms", "outerwear", "footwear", "accessories"
+  itemName: string
+  brand: string
+  reasoning: string // one-sentence expert reasoning
+  purchaseUrl?: string
+  affiliateUrl?: string
+  imageUrl?: string
+  priceRange?: string
+  priority: "essential" | "recommended" | "optional"
+}
+
+export type GuideLookbook = {
+  id: string
+  title: string
+  description: string
+  occasion: string
+  items: string[] // references to recommendation IDs
+  imageUrl?: string
+  referenceImageUrls?: string[]
+}

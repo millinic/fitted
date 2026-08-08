@@ -3,47 +3,32 @@
 import { cn } from "@/lib/utils"
 
 interface MultiSelectProps {
-  options: readonly string[]
+  label?: string
+  options: readonly string[] | string[]
   selected: string[]
   onChange: (selected: string[]) => void
-  label?: string
-  maxSelections?: number
-  columns?: 2 | 3
+  columns?: 1 | 2 | 3
+  className?: string
 }
 
-export function MultiSelect({
-  options,
-  selected,
-  onChange,
-  label,
-  maxSelections,
-  columns = 2,
-}: MultiSelectProps) {
-  const toggle = (option: string) => {
-    if (selected.includes(option)) {
-      onChange(selected.filter((s) => s !== option))
-    } else if (!maxSelections || selected.length < maxSelections) {
-      onChange([...selected, option])
+export function MultiSelect({ label, options, selected, onChange, columns = 2, className }: MultiSelectProps) {
+  const toggle = (value: string) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter((s) => s !== value))
+    } else {
+      onChange([...selected, value])
     }
   }
 
   return (
-    <div className="space-y-3">
-      {label && (
-        <label className="block text-sm font-medium text-neutral-700">
-          {label}
-          {maxSelections && (
-            <span className="text-neutral-400 font-normal ml-1">
-              (select up to {maxSelections})
-            </span>
-          )}
-        </label>
-      )}
+    <div className={cn("space-y-3", className)}>
+      {label && <p className="text-sm font-medium text-neutral-700">{label}</p>}
       <div
-        className={cn(
-          "grid gap-2",
-          columns === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3"
-        )}
+        className={cn("grid gap-2", {
+          "grid-cols-1": columns === 1,
+          "grid-cols-1 sm:grid-cols-2": columns === 2,
+          "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3": columns === 3,
+        })}
       >
         {options.map((option) => {
           const isSelected = selected.includes(option)
@@ -53,10 +38,10 @@ export function MultiSelect({
               type="button"
               onClick={() => toggle(option)}
               className={cn(
-                "px-4 py-2.5 rounded-lg border text-sm text-left transition-all duration-200",
+                "text-left px-4 py-3 rounded-lg border-2 transition-all duration-200 text-sm",
                 isSelected
                   ? "border-neutral-900 bg-neutral-900 text-white"
-                  : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300"
+                  : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
               )}
             >
               {option}

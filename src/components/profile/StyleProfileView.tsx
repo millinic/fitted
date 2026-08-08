@@ -1,279 +1,192 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useSession, signIn } from "next-auth/react"
-import { Header } from "@/components/layout/Header"
-import { Footer } from "@/components/layout/Footer"
+import { useState } from "react"
+import type { StyleProfileSummary } from "@/types"
+import { GUIDE_PRICE_DISPLAY, GUIDE_DELIVERY_MESSAGE } from "@/lib/constants"
 import { Button } from "@/components/ui/Button"
-import { getProfileSummary } from "@/actions/guide"
-import { createCheckoutSession } from "@/actions/payment"
-import { GUIDE_PRICE_DISPLAY, ESTIMATED_DELIVERY_DAYS } from "@/lib/constants"
-import type { StyleProfileSummaryContent } from "@/types"
+import { Card } from "@/components/ui/Card"
+import { Footer } from "@/components/layout/Footer"
 
-export function StyleProfileView() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { data: session } = useSession()
-  const assessmentId = searchParams.get("assessmentId")
-  const [profile, setProfile] = useState<StyleProfileSummaryContent | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [purchasing, setPurchasing] = useState(false)
+interface StyleProfileViewProps {
+  assessmentId: string
+  firstName: string
+  profile: StyleProfileSummary
+}
+
+export function StyleProfileView({ assessmentId, firstName, profile }: StyleProfileViewProps) {
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function loadProfile() {
-      // Try sessionStorage first for immediate display
-      try {
-        const cached = sessionStorage.getItem("profileSummary")
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          if (parsed && parsed.styleArchetype) {
-            setProfile(parsed)
-            setLoading(false)
-            return
-          }
-        }
-      } catch {
-        // Fall through to API
-      }
-
-      if (!assessmentId) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        const result = await getProfileSummary(assessmentId)
-        if (result.success && result.data?.profileSummary) {
-          setProfile(result.data.profileSummary)
-        }
-      } catch {
-        // Silently fail, show empty state
-      }
-      setLoading(false)
-    }
-
-    loadProfile()
-  }, [assessmentId])
-
   const handlePurchase = async () => {
-    if (!session) {
-      signIn("google", { callbackUrl: window.location.href })
-      return
-    }
-
-    let id = assessmentId
-    if (!id) {
-      try {
-        id = sessionStorage.getItem("assessmentId")
-      } catch {
-        // ignore
-      }
-    }
-
-    if (!id) {
-      setError("Assessment not found. Please retake the assessment.")
-      return
-    }
-
-    setPurchasing(true)
+    setLoading(true)
     setError(null)
 
     try {
-      const result = await createCheckoutSession(id)
-      if (result.success) {
-        window.location.href = result.data.sessionUrl
-      } else {
-        setError(result.error || "Failed to start checkout")
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assessmentId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to create checkout session")
       }
-    } catch {
-      setError("Something went wrong. Please try again.")
-    } finally {
-      setPurchasing(false)
+
+      window.location.href = data.data.checkoutUrl
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.")
+      setLoading(false)
     }
   }
 
-  if (loading) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen bg-brand-50 pt-32 flex items-start justify-center">
-          <div className="animate-pulse space-y-6 w-full max-w-2xl px-4">
-            <div className="h-8 bg-neutral-200 rounded w-1/3 mx-auto" />
-            <div className="h-4 bg-neutral-200 rounded w-2/3 mx-auto" />
-            <div className="h-64 bg-neutral-200 rounded-2xl" />
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  if (!profile) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen bg-brand-50 pt-32 flex flex-col items-center justify-start px-4">
-          <h1 className="font-serif text-2xl font-semibold text-neutral-900 mb-4">
-            Profile Not Found
-          </h1>
-          <p className="text-neutral-600 mb-6">
-            We couldn&apos;t find your style profile. Please complete the
-            assessment first.
-          </p>
-          <Button onClick={() => router.push("/assessment")}>
-            Start Assessment
-          </Button>
-        </div>
-      </>
-    )
+  const COLOR_MAP: Record<string, string> = {
+    "Black": "bg-neutral-900",
+    "White": "bg-white border border-neutral-200",
+    "Navy": "bg-blue-900",
+    "Grey": "bg-neutral-400",
+    "Charcoal": "bg-neutral-700",
+    "Cream / Off-white": "bg-amber-50 border border-neutral-200",
+    "Olive / Army Green": "bg-green-800",
+    "Burgundy": "bg-red-900",
+    "Tan / Camel": "bg-amber-200",
+    "Brown": "bg-amber-800",
+    "Light Blue": "bg-blue-300",
+    "Sage Green": "bg-green-300",
+    "Terracotta": "bg-orange-700",
+    "Dusty Pink": "bg-pink-300",
+    "Lavender": "bg-purple-300",
+    "Mustard": "bg-yellow-600",
   }
 
   return (
     <>
-      <Header />
-      <div className="min-h-screen bg-brand-50 pt-28 pb-20 px-4 sm:px-6">
-        <div className="max-w-3xl mx-auto">
+      <div className="bg-brand-50 min-h-screen">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
           {/* Header */}
           <div className="text-center mb-12">
-            <p className="text-xs font-medium tracking-[0.2em] uppercase text-brand-600 mb-4">
+            <p className="text-sm font-medium tracking-widest uppercase text-brand-600 mb-3">
               Your Style Profile
             </p>
-            <h1 className="font-serif text-4xl sm:text-5xl font-semibold text-neutral-900 mb-3">
-              {profile.styleArchetype}
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-neutral-900 mb-4">
+              {profile.headline}
             </h1>
-            <p className="text-lg text-neutral-600 max-w-xl mx-auto leading-relaxed">
-              {profile.aestheticDescription}
+            <p className="text-lg text-neutral-600">
+              Hey {firstName}, here&apos;s what we learned about your style.
             </p>
           </div>
 
-          {/* Profile Details */}
-          <div className="space-y-8">
-            {/* Key Principles */}
-            <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
-              <h3 className="text-xs font-medium tracking-[0.15em] uppercase text-brand-600 mb-5">
-                Your Style Principles
-              </h3>
-              <ul className="space-y-3">
-                {profile.keyPrinciples.map((principle, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start gap-3 text-sm text-neutral-700"
-                  >
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-xs font-medium flex-shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    {principle}
-                  </li>
-                ))}
-              </ul>
+          {/* Archetype Badge */}
+          <div className="flex justify-center mb-10">
+            <span className="px-6 py-2.5 bg-neutral-900 text-white rounded-full text-sm font-medium tracking-wide">
+              {profile.archetype}
+            </span>
+          </div>
+
+          {/* Summary */}
+          <Card variant="elevated" className="mb-8">
+            <div className="space-y-4">
+              {profile.body.split("\n\n").map((paragraph, i) => (
+                <p key={i} className="text-neutral-700 leading-relaxed">{paragraph}</p>
+              ))}
             </div>
+          </Card>
 
-            {/* Color Palette & Fit */}
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
-                <h3 className="text-xs font-medium tracking-[0.15em] uppercase text-brand-600 mb-5">
-                  Your Color Palette
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {profile.colorPalette.map((color) => (
-                    <span
-                      key={color}
-                      className="px-3 py-1.5 rounded-full bg-brand-50 border border-brand-200 text-sm text-brand-800"
-                    >
-                      {color}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
-                <h3 className="text-xs font-medium tracking-[0.15em] uppercase text-brand-600 mb-5">
-                  Fit Guidance
-                </h3>
-                <p className="text-sm text-neutral-700 leading-relaxed">
-                  {profile.fitGuidance}
-                </p>
-              </div>
-            </div>
-
-            {/* Recommended Brands */}
-            <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
-              <h3 className="text-xs font-medium tracking-[0.15em] uppercase text-brand-600 mb-5">
-                Recommended Brands
-              </h3>
+          {/* Key Traits */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <Card variant="bordered">
+              <h3 className="font-serif text-lg text-neutral-900 mb-4">Key Traits</h3>
               <div className="flex flex-wrap gap-2">
-                {profile.recommendedBrands.map((brand) => (
+                {profile.keyTraits.map((trait) => (
                   <span
-                    key={brand}
-                    className="px-4 py-2 rounded-lg bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-700"
+                    key={trait}
+                    className="px-3 py-1.5 bg-brand-100 text-brand-800 rounded-lg text-sm font-medium"
                   >
-                    {brand}
+                    {trait}
                   </span>
                 ))}
               </div>
-            </div>
-          </div>
+            </Card>
 
-          {/* CTA / Paywall */}
-          <div className="mt-12 bg-neutral-900 text-white rounded-2xl p-8 sm:p-10 text-center">
-            <h2 className="font-serif text-2xl sm:text-3xl font-semibold mb-3">
-              Ready for your full style guide?
-            </h2>
-            <p className="text-neutral-400 mb-8 max-w-lg mx-auto">
-              Get 20+ specific product recommendations with purchase links,
-              lookbook combinations, and expert styling tips — all tailored to
-              your{" "}
-              <span className="text-white font-medium">
-                {profile.styleArchetype}
-              </span>{" "}
-              profile.
-            </p>
-
-            <ul className="grid sm:grid-cols-2 gap-3 text-sm text-neutral-300 text-left max-w-md mx-auto mb-8">
-              {[
-                "Specific product picks with links",
-                "Lookbook styling combinations",
-                "Expert reasoning per item",
-                "Reviewed by our stylist",
-                `Delivered in ${ESTIMATED_DELIVERY_DAYS}`,
-                "One-time purchase",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4 text-brand-400 flex-shrink-0"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  {item}
-                </li>
-              ))}
-            </ul>
-
-            {error && (
-              <div className="mb-6 p-3 rounded-lg bg-red-900/30 border border-red-800 text-sm text-red-300">
-                {error}
+            <Card variant="bordered">
+              <h3 className="font-serif text-lg text-neutral-900 mb-4">Your Color Palette</h3>
+              <div className="flex flex-wrap gap-2">
+                {profile.colorPalette.map((color) => (
+                  <div key={color} className="flex items-center gap-2 px-3 py-1.5 bg-neutral-50 rounded-lg">
+                    <div className={`w-4 h-4 rounded-full shrink-0 ${COLOR_MAP[color] || "bg-neutral-300"}`} />
+                    <span className="text-neutral-700 text-sm font-medium">{color}</span>
+                  </div>
+                ))}
               </div>
-            )}
-
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={handlePurchase}
-              loading={purchasing}
-              className="text-neutral-900 bg-white hover:bg-neutral-100"
-            >
-              Get My Full Guide — {GUIDE_PRICE_DISPLAY}
-            </Button>
+            </Card>
           </div>
+
+          {/* Brand Preview */}
+          <Card variant="bordered" className="mb-12">
+            <h3 className="font-serif text-lg text-neutral-900 mb-4">Recommended Brands Preview</h3>
+            <p className="text-sm text-neutral-500 mb-4">
+              These brands align with your style profile. Your full guide will include specific product recommendations from these and similar brands.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {profile.brandPreview.map((brand) => (
+                <span
+                  key={brand}
+                  className="px-4 py-2 bg-brand-50 border border-brand-200 text-neutral-800 rounded-full text-sm font-medium"
+                >
+                  {brand}
+                </span>
+              ))}
+            </div>
+          </Card>
+
+          {/* Paywall */}
+          <Card variant="elevated" className="text-center border-2 border-brand-200">
+            <div className="max-w-md mx-auto py-4">
+              <h2 className="font-serif text-2xl text-neutral-900 mb-3">
+                Get your full style guide
+              </h2>
+              <p className="text-neutral-600 mb-6">
+                Unlock 15-20 specific product recommendations, complete outfit lookbooks, purchase
+                links, and personalized styling advice — all reviewed by our founder stylist.
+              </p>
+
+              <ul className="text-left space-y-2 mb-6">
+                {[
+                  "Specific products with brand names & prices",
+                  "4-5 complete outfit lookbooks",
+                  "Personalized fit & styling advice",
+                  "Reviewed by our founder stylist",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm text-neutral-600">
+                    <svg className="w-4 h-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex items-baseline justify-center gap-2 mb-6">
+                <span className="text-4xl font-serif font-semibold text-neutral-900">
+                  {GUIDE_PRICE_DISPLAY}
+                </span>
+                <span className="text-neutral-500">one-time</span>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-error">
+                  {error}
+                </div>
+              )}
+
+              <Button size="lg" onClick={handlePurchase} loading={loading} className="w-full">
+                Get My Full Style Guide
+              </Button>
+
+              <p className="text-xs text-neutral-400 mt-4">{GUIDE_DELIVERY_MESSAGE}</p>
+            </div>
+          </Card>
         </div>
       </div>
       <Footer />

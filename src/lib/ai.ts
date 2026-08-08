@@ -1,155 +1,148 @@
-import { generateObject } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
-import { z } from "zod"
-import type { AssessmentFormData, StyleProfileSummaryContent, StyleGuideContent } from "@/types"
+import { generateText } from "ai"
+import { openai } from "@ai-sdk/openai"
+import type { AssessmentFormData, StyleProfileSummary, StyleGuideContent } from "@/types"
+import type { GuideRecommendation, GuideLookbook } from "@/lib/db/schema"
 
-function getOpenAI() {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY environment variable is not set")
-  }
-  return createOpenAI({ apiKey })
+function getModel() {
+  return openai("gpt-4o")
 }
 
-const styleProfileSchema = z.object({
-  styleArchetype: z.string(),
-  aestheticDescription: z.string(),
-  keyPrinciples: z.array(z.string()),
-  recommendedBrands: z.array(z.string()),
-  colorPalette: z.array(z.string()),
-  fitGuidance: z.string(),
-})
+const FOUNDER_PHILOSOPHY = `You are an expert men's style consultant with a refined, elevated aesthetic sensibility. Your style philosophy:
 
-const styleGuideSchema = z.object({
-  sections: z.array(
-    z.object({
-      category: z.string(),
-      items: z.array(
-        z.object({
-          name: z.string(),
-          brand: z.string(),
-          description: z.string(),
-          reasoning: z.string(),
-          purchaseUrl: z.string(),
-          affiliateUrl: z.string().optional(),
-          imageUrl: z.string().optional(),
-          priceRange: z.string(),
-        })
-      ),
-    })
-  ),
-  lookbooks: z.array(
-    z.object({
-      name: z.string(),
-      description: z.string(),
-      items: z.array(z.string()),
-      imageUrl: z.string().optional(),
-    })
-  ),
-  generalTips: z.array(z.string()),
-})
+1. TIMELESSNESS OVER TRENDS: Recommend pieces that will look good for years, not months. Trends may inform recommendations only when they align with the user's preferences and overall quality standards.
 
-export async function generateStyleProfileSummary(
+2. FIT IS EVERYTHING: The most expensive piece looks terrible if it doesn't fit. Prioritize proper fit above all else.
+
+3. QUALITY OVER QUANTITY: Fewer, better pieces. A curated wardrobe of 30 excellent items beats 100 mediocre ones.
+
+4. ELEVATED BASICS: The foundation of great style is exceptional basics — perfect t-shirts, well-cut trousers, quality knitwear.
+
+5. INTENTIONAL COLOR: Build around a cohesive color palette. Neutrals form the foundation; accent colors add personality.
+
+6. CONTEXT MATTERS: Dress for your actual life, not an aspirational one. Every recommendation should work for the user's real lifestyle.
+
+7. CONFIDENCE THROUGH SIMPLICITY: The goal is to look effortlessly well-dressed, never costumey or try-hard.
+
+Reference brands for tone: Ralph Lauren, COS, ARKET, MANGO Man, APC, Norse Projects. The aesthetic is clean, premium, and confident without being intimidating.`
+
+export async function generateStyleProfile(
   assessment: AssessmentFormData
-): Promise<StyleProfileSummaryContent> {
-  const openai = getOpenAI()
+): Promise<StyleProfileSummary> {
+  const prompt = `${FOUNDER_PHILOSOPHY}
 
-  const systemPrompt = `You are an expert men's style consultant with a refined, elevated aesthetic sensibility. Your style philosophy is rooted in timelessness, quality, and effortless sophistication — think Ralph Lauren, COS, ARKET, and MANGO Man. You believe in dressing well as a form of self-respect, not vanity.
+Based on the following style assessment, generate a personalized style profile summary. This is shown to the user BEFORE they pay, so it must be compelling, specific, and demonstrate that you truly understand them.
 
-You are creating a style profile summary for a client based on their assessment answers. This summary should feel genuinely personalized — not generic. Reference their specific answers. Be specific about their archetype, the aesthetic direction you'd take them in, and why.
+ASSESSMENT DATA:
+- Name: ${assessment.firstName} ${assessment.lastName}
+- Age: ${assessment.age}
+- Location: ${assessment.location}
+- Height: ${assessment.heightFeet}'${assessment.heightInches}"
+- Body Type: ${assessment.bodyType}
+- Fit Preference: ${assessment.fitPreference}
+- Lifestyle: ${assessment.lifestyleContext?.join(", ")}
+- Style Goal: ${assessment.styleGoal}
+- Brands They Like: ${assessment.brandsLiked?.join(", ")}
+- Style References: ${assessment.styleReferences?.join(", ")}
+- Color Preferences: ${assessment.colorPreferences?.join(", ")}
+- Colors to Avoid: ${assessment.colorsToAvoid?.join(", ")}
+- Budget: ${assessment.budgetRange}
+- Wardrobe Gaps: ${assessment.wardrobeGaps?.join(", ")}
 
-Be confident and direct. Use language that is elevated but never pretentious. Think of how a trusted, stylish friend who happens to be an expert would speak.`
+Respond in VALID JSON with this exact structure:
+{
+  "headline": "A compelling 5-8 word headline that captures their style identity (e.g. 'The Modern Minimalist with Edge')",
+  "body": "A 2-3 paragraph personalized summary (100-150 words) that demonstrates deep understanding of their style needs, current situation, and potential. Be specific to their inputs — reference their lifestyle, body type, and preferences directly. Make them feel understood and excited about what's possible.",
+  "archetype": "A 2-3 word style archetype label",
+  "keyTraits": ["trait1", "trait2", "trait3", "trait4"],
+  "colorPalette": ["color1", "color2", "color3", "color4", "color5"],
+  "brandPreview": ["brand1", "brand2", "brand3", "brand4"]
+}
 
-  const userPrompt = `Here is the client's style assessment:
+Ensure colorPalette contains actual color names that would work for this person. BrandPreview should be 4 brands from the appropriate tier based on their budget.`
 
-Height: ${assessment.height}
-Body Type: ${assessment.bodyType}
-Fit Preference: ${assessment.fitPreference}
-Waist: ${assessment.waistSize}, Chest: ${assessment.chestSize}, Inseam: ${assessment.inseam}
-Typical Shirt Size: ${assessment.typicalShirtSize}, Pant Size: ${assessment.typicalPantSize}, Shoe Size: ${assessment.shoeSize}
-
-Brands that fit well: ${assessment.brandFitReferences.join(", ") || "Not specified"}
-Brands they like: ${assessment.brandsLiked.join(", ") || "Not specified"}
-Style references: ${assessment.styleReferences.join(", ") || "Not specified"}
-
-Lifestyle contexts: ${assessment.lifestyleContext.join(", ") || "Not specified"}
-Style goals: ${assessment.styleGoals.join(", ") || "Not specified"}
-
-Color preferences: ${assessment.colorPreferences.join(", ") || "Not specified"}
-Colors to avoid: ${assessment.colorsToAvoid.join(", ") || "Not specified"}
-
-Wardrobe gaps: ${assessment.wardrobeGaps.join(", ") || "Not specified"}
-Budget range: ${assessment.budgetRange}
-Shopping behavior: ${assessment.shoppingBehavior || "Not specified"}
-
-Additional notes: ${assessment.additionalNotes || "None"}
-
-Generate a personalized style profile summary that will make this client feel understood and excited about their style direction. The styleArchetype should be a compelling 2-4 word descriptor (e.g., "Modern Minimalist", "Elevated Essential", "Refined Creative"). The aestheticDescription should be 2-3 sentences painting a picture of their ideal aesthetic direction. keyPrinciples should be 3-4 specific, actionable style principles tailored to them. recommendedBrands should be 5-8 brands from various price points that match their aesthetic, budget, and fit. colorPalette should be 5-7 specific colors that form their ideal palette. fitGuidance should be 2-3 sentences of specific fit advice based on their body type and preferences.`
-
-  const { object } = await generateObject({
-    model: openai("gpt-4o"),
-    schema: styleProfileSchema,
-    system: systemPrompt,
-    prompt: userPrompt,
+  const { text } = await generateText({
+    model: getModel(),
+    prompt,
+    temperature: 0.7,
   })
 
-  return object
+  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
+  return JSON.parse(cleaned)
 }
 
 export async function generateFullStyleGuide(
   assessment: AssessmentFormData,
-  profileSummary: StyleProfileSummaryContent
+  profileSummary: StyleProfileSummary
 ): Promise<StyleGuideContent> {
-  const openai = getOpenAI()
+  const prompt = `${FOUNDER_PHILOSOPHY}
 
-  const systemPrompt = `You are an expert men's style consultant creating a comprehensive, personalized style guide. Your aesthetic sensibility is elevated, timeless, and effortlessly sophisticated. Reference brands for your tone: Ralph Lauren, COS, ARKET, MANGO Man, A.P.C.
+Generate a comprehensive, personalized style guide for this user. Every recommendation must be SPECIFIC — real brand names, real product types, estimated price ranges.
 
-You are generating specific product recommendations with real brands and realistic product names. Each recommendation should feel hand-picked for this specific client.
+USER PROFILE:
+- Name: ${assessment.firstName}
+- Age: ${assessment.age}
+- Location: ${assessment.location}
+- Height: ${assessment.heightFeet}'${assessment.heightInches}"
+- Body Type: ${assessment.bodyType}
+- Fit Preference: ${assessment.fitPreference}
+- Top Size: ${assessment.typicalTopSize}
+- Bottom Size: ${assessment.typicalBottomSize}
+- Shoe Size: ${assessment.shoeSize}
+- Waist: ${assessment.waist}", Chest: ${assessment.chest}", Inseam: ${assessment.inseam}"
+- Style Archetype: ${profileSummary.archetype}
+- Lifestyle: ${assessment.lifestyleContext?.join(", ")}
+- Style Goal: ${assessment.styleGoal}
+- Brands They Like: ${assessment.brandsLiked?.join(", ")}
+- Brand Fit References: ${assessment.brandFitReferences?.join(", ")}
+- Style References: ${assessment.styleReferences?.join(", ")}
+- Color Preferences: ${assessment.colorPreferences?.join(", ")}
+- Colors to Avoid: ${assessment.colorsToAvoid?.join(", ")}
+- Recommended Palette: ${profileSummary.colorPalette?.join(", ")}
+- Budget: ${assessment.budgetRange}
+- Wardrobe Gaps: ${assessment.wardrobeGaps?.join(", ")}
+- Shopping Behavior: ${assessment.shoppingBehavior}
+- Additional Notes: ${assessment.additionalNotes}
 
-Rules:
-1. Every recommendation must include a reasoning — one concise sentence explaining WHY this piece works for them specifically
-2. Product names should be realistic and specific (e.g., "Slim Fit Oxford Shirt in White" not just "White Shirt")
-3. Purchase URLs should point to real brand websites (e.g., https://www.cos.com, https://www.ralphlauren.com)
-4. Price ranges should match their budget range and the brand tier
-5. Include 6-8 product categories covering their wardrobe gaps and lifestyle needs
-6. Each category should have 2-3 specific product recommendations
-7. Create 3-4 lookbooks showing how pieces work together
-8. Include 5-7 general style tips personalized to their goals and lifestyle
-9. Recommendations should prioritize trends ONLY when they align with the client's stated preferences and overall quality standards — default to timelessness`
+Respond in VALID JSON with this exact structure:
+{
+  "introduction": "A personalized 2-3 paragraph introduction (150-200 words) addressing them by first name, explaining the philosophy behind their guide, and what to expect.",
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "category": "tops",
+      "itemName": "Specific product name (e.g. 'Heavyweight Cotton Crew Neck T-Shirt')",
+      "brand": "Brand Name",
+      "reasoning": "One concise sentence explaining why this specific item works for them.",
+      "priceRange": "$XX-$XX",
+      "priority": "essential"
+    }
+  ],
+  "lookbooks": [
+    {
+      "id": "look-1",
+      "title": "Lookbook title (e.g. 'Monday Meeting')",
+      "description": "2-3 sentences describing this outfit and when to wear it.",
+      "occasion": "work",
+      "items": ["rec-1", "rec-5", "rec-8"]
+    }
+  ],
+  "generalAdvice": "3-4 paragraphs of personalized style advice covering fit tips for their body type, how to build outfits from these pieces, care/maintenance tips, and seasonal considerations. 200-300 words."
+}
 
-  const userPrompt = `Client Style Profile:
-Archetype: ${profileSummary.styleArchetype}
-Aesthetic: ${profileSummary.aestheticDescription}
-Key Principles: ${profileSummary.keyPrinciples.join("; ")}
-Recommended Brands: ${profileSummary.recommendedBrands.join(", ")}
-Color Palette: ${profileSummary.colorPalette.join(", ")}
-Fit Guidance: ${profileSummary.fitGuidance}
+Generate exactly:
+- 15-20 recommendations across categories: tops (4-5), bottoms (3-4), outerwear (2-3), footwear (2-3), accessories (2-3), layering (1-2)
+- 4-5 lookbooks combining the recommended items
+- Each recommendation MUST have a unique id starting with "rec-"
+- Priority should be: ~40% essential, ~40% recommended, ~20% optional
+- Lookbook items array should reference recommendation ids`
 
-Client Assessment Data:
-Height: ${assessment.height}
-Body Type: ${assessment.bodyType}
-Fit Preference: ${assessment.fitPreference}
-Measurements - Waist: ${assessment.waistSize}, Chest: ${assessment.chestSize}, Inseam: ${assessment.inseam}
-Sizes - Shirt: ${assessment.typicalShirtSize}, Pants: ${assessment.typicalPantSize}, Shoes: ${assessment.shoeSize}
-
-Brands they already like: ${assessment.brandsLiked.join(", ") || "Not specified"}
-Style references: ${assessment.styleReferences.join(", ") || "Not specified"}
-Lifestyle: ${assessment.lifestyleContext.join(", ") || "Not specified"}
-Style goals: ${assessment.styleGoals.join(", ") || "Not specified"}
-Color preferences: ${assessment.colorPreferences.join(", ") || "Not specified"}
-Colors to avoid: ${assessment.colorsToAvoid.join(", ") || "Not specified"}
-Wardrobe gaps: ${assessment.wardrobeGaps.join(", ") || "Not specified"}
-Budget: ${assessment.budgetRange}
-Shopping behavior: ${assessment.shoppingBehavior || "Not specified"}
-
-Generate a comprehensive, highly personalized style guide with specific product recommendations, lookbook combinations, and general tips. Every recommendation should feel intentional and specifically chosen for this client.`
-
-  const { object } = await generateObject({
-    model: openai("gpt-4o"),
-    schema: styleGuideSchema,
-    system: systemPrompt,
-    prompt: userPrompt,
+  const { text } = await generateText({
+    model: getModel(),
+    prompt,
+    temperature: 0.7,
+    maxTokens: 4000,
   })
 
-  return object
+  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
+  return JSON.parse(cleaned)
 }

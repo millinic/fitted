@@ -1,26 +1,32 @@
 import { neon } from "@neondatabase/serverless"
-import { drizzle } from "drizzle-orm/neon-http"
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http"
+import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http"
 import * as schema from "./schema"
 
-type DbType = NeonHttpDatabase<typeof schema>
+type Database = NeonHttpDatabase<typeof schema>
 
-function createDb(): DbType {
-  const url = process.env.DATABASE_URL
-  if (!url) {
-    return new Proxy({} as DbType, {
-      get(_target, prop) {
-        if (prop === "then" || prop === "toJSON" || typeof prop === "symbol") {
-          return undefined
-        }
-        throw new Error(
-          `DATABASE_URL environment variable is not set. Cannot access db.${String(prop)}`
-        )
-      },
-    })
+let _db: Database | undefined
+
+export function getDb(): Database {
+  if (!_db) {
+    const databaseUrl = process.env.DATABASE_URL
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL environment variable is not set")
+    }
+    const sql = neon(databaseUrl)
+    _db = drizzle(sql, { schema })
   }
-  const sql = neon(url)
-  return drizzle(sql, { schema })
+  return _db
 }
 
-export const db: DbType = createDb()
+// For convenience: a lazy-initialized db export.
+// We use a getter so the actual connection is only created on first property access.
+export const db: Database = new Proxy({} as Database, {
+  get(_target, prop, receiver) {
+    const realDb = getDb()
+    const value = (realDb as any)[prop]
+    if (typeof value === "function") {
+      return value.bind(realDb)
+    }
+    return value
+  },
+})

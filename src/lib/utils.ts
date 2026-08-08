@@ -12,6 +12,10 @@ export function formatCurrency(amountInCents: number, currency = "USD"): string 
   }).format(amountInCents / 100)
 }
 
+export function generateId(): string {
+  return crypto.randomUUID()
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -20,6 +24,14 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "")
 }
 
-export function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+export function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  return text.slice(0, maxLength).trimEnd() + "…"
+}
+
+export function getBaseUrl(): string {
+  if (typeof window !== "undefined") return ""
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return "http://localhost:3000"
 }
