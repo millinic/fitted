@@ -1,148 +1,118 @@
-// ─── Pricing ────────────────────────────────────────────────────────────────
+export const APP_NAME = "Fitted" as const
+export const APP_DESCRIPTION =
+  "A personalized men's style platform that delivers an expert-curated wardrobe guide." as const
+export const APP_URL = "https://fitted.style" as const
 
-export const GUIDE_PRICE_CENTS = 9800 // $98.00
-export const GUIDE_PRICE_DISPLAY = "$98"
-export const GUIDE_CURRENCY = "usd"
+// Pricing
+export const GUIDE_PRICE_CENTS = 9800 as const
+export const GUIDE_PRICE_DISPLAY = "$98" as const
+export const GUIDE_CURRENCY = "usd" as const
 
-// ─── Assessment ─────────────────────────────────────────────────────────────
+// Assessment
+export const ASSESSMENT_MAX_MINUTES = 10 as const
 
-export const ASSESSMENT_STEPS = [
-  "basics",
-  "measurements",
-  "body-fit",
-  "lifestyle",
-  "style-preferences",
-  "brands",
-  "colors",
-  "budget",
-  "final",
-] as const
+// Guide delivery
+export const GUIDE_GENERATION_ANIMATION_SECONDS = 45 as const
+export const GUIDE_DELIVERY_DAYS_MIN = 1 as const
+export const GUIDE_DELIVERY_DAYS_MAX = 3 as const
 
-export type AssessmentStep = (typeof ASSESSMENT_STEPS)[number]
-
+// Body types
 export const BODY_TYPES = [
   { value: "slim", label: "Slim" },
   { value: "athletic", label: "Athletic" },
   { value: "average", label: "Average" },
   { value: "broad", label: "Broad" },
   { value: "stocky", label: "Stocky" },
-  { value: "tall_slim", label: "Tall & Slim" },
-  { value: "tall_broad", label: "Tall & Broad" },
+  { value: "tall_lean", label: "Tall & Lean" },
 ] as const
 
+// Fit preferences
 export const FIT_PREFERENCES = [
-  { value: "slim", label: "Slim", description: "Close to the body, modern cut" },
-  { value: "tailored", label: "Tailored", description: "Structured but not tight" },
-  { value: "relaxed", label: "Relaxed", description: "Easy and comfortable, room to move" },
-  { value: "oversized", label: "Oversized", description: "Intentionally loose, contemporary" },
+  { value: "slim", label: "Slim Fit" },
+  { value: "tailored", label: "Tailored" },
+  { value: "relaxed", label: "Relaxed" },
+  { value: "oversized", label: "Oversized" },
 ] as const
 
+// Budget ranges
 export const BUDGET_RANGES = [
-  { value: "moderate", label: "Moderate", description: "$50–150 per piece" },
-  { value: "premium", label: "Premium", description: "$150–400 per piece" },
-  { value: "luxury", label: "Luxury", description: "$400+ per piece" },
-  { value: "mixed", label: "Mixed", description: "Varies by category" },
+  { value: "moderate", label: "$50–$150 per item" },
+  { value: "upper_moderate", label: "$100–$250 per item" },
+  { value: "premium", label: "$200–$500 per item" },
+  { value: "luxury", label: "$500+ per item" },
 ] as const
 
+// Lifestyle contexts
 export const LIFESTYLE_CONTEXTS = [
-  "Remote work / casual office",
-  "Corporate office",
-  "Creative industry",
-  "Social outings / nightlife",
-  "Weekend casual",
-  "Date nights",
-  "Travel",
-  "Outdoor activities",
+  { value: "office", label: "Office / Professional" },
+  { value: "remote_work", label: "Remote / Work from Home" },
+  { value: "creative", label: "Creative / Studio" },
+  { value: "social", label: "Social / Going Out" },
+  { value: "casual", label: "Everyday Casual" },
+  { value: "date", label: "Date Night" },
+  { value: "travel", label: "Travel" },
 ] as const
 
+// Style goals
 export const STYLE_GOALS = [
-  "Day-to-day confidence",
-  "Professional presence",
-  "Dating / social appeal",
-  "Creative expression",
-  "Elevated basics",
-  "Complete wardrobe overhaul",
+  { value: "daily_confidence", label: "Day-to-day confidence" },
+  { value: "professional", label: "Professional presence" },
+  { value: "dating", label: "Dating & social life" },
+  { value: "elevated_basics", label: "Elevated basics" },
+  { value: "wardrobe_overhaul", label: "Full wardrobe overhaul" },
+  { value: "specific_events", label: "Specific events or occasions" },
 ] as const
 
-export const TOP_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"] as const
-export const BOTTOM_SIZES = [
-  "28",
-  "29",
-  "30",
-  "31",
-  "32",
-  "33",
-  "34",
-  "36",
-  "38",
-  "40",
-  "42",
+// Reference brands (for the assessment)
+export const REFERENCE_BRANDS = [
+  "Ralph Lauren",
+  "Tommy Hilfiger",
+  "COS",
+  "MANGO Man",
+  "Zara",
+  "J.Crew",
+  "Banana Republic",
+  "Club Monaco",
+  "Theory",
+  "AllSaints",
+  "Reiss",
+  "Ted Baker",
+  "Hugo Boss",
+  "Nike",
+  "Adidas",
+  "Uniqlo",
+  "H&M",
+  "Everlane",
+  "Bonobos",
+  "Todd Snyder",
+  "Ami Paris",
+  "A.P.C.",
+  "Acne Studios",
+  "Sandro",
 ] as const
 
-// ─── Brand Universe ─────────────────────────────────────────────────────────
+// Shirt sizes
+export const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const
 
-export const BRAND_TIERS = {
-  accessible: [
-    "Uniqlo",
-    "Zara",
-    "H&M",
-    "COS",
-    "ARKET",
-    "MANGO Man",
-    "J.Crew",
-    "Banana Republic",
-    "Abercrombie & Fitch",
-    "Gap",
-  ],
-  premium: [
-    "Ralph Lauren",
-    "Tommy Hilfiger",
-    "Theory",
-    "Club Monaco",
-    "Reiss",
-    "AllSaints",
-    "Sandro",
-    "APC",
-    "Norse Projects",
-    "Aimé Leon Dore",
-    "Kith",
-    "Todd Snyder",
-  ],
-  luxury: [
-    "Loro Piana",
-    "Brunello Cucinelli",
-    "Zegna",
-    "Tom Ford",
-    "Saint Laurent",
-    "Celine",
-    "Ami Paris",
-    "Jacquemus",
-    "Lemaire",
-    "The Row",
-  ],
-} as const
-
-// ─── Guide ──────────────────────────────────────────────────────────────────
-
-export const GUIDE_CATEGORIES = [
-  "tops",
-  "bottoms",
-  "outerwear",
-  "footwear",
-  "accessories",
-  "layering",
+// Color preferences
+export const COLOR_FAMILIES = [
+  { value: "neutrals", label: "Neutrals (black, white, grey, navy)" },
+  { value: "earth_tones", label: "Earth Tones (olive, tan, brown, rust)" },
+  { value: "cool_tones", label: "Cool Tones (blue, teal, slate)" },
+  { value: "warm_tones", label: "Warm Tones (burgundy, camel, terracotta)" },
+  { value: "muted", label: "Muted / Desaturated" },
+  { value: "bold", label: "Bold / Saturated Pops" },
 ] as const
 
-export const GUIDE_GENERATION_ANIMATION_DURATION_MS = 45_000 // 45 seconds
-
-export const GUIDE_DELIVERY_MESSAGE =
-  "Your guide is being reviewed by our stylist. Expect delivery within 1–3 business days."
-
-// ─── App ────────────────────────────────────────────────────────────────────
-
-export const APP_NAME = "Fitted"
-export const APP_TAGLINE = "Your Personal Style Guide"
-export const APP_DESCRIPTION =
-  "Expert-curated, personalized wardrobe recommendations for men who want to dress better without the effort."
-export const APP_URL = "https://fitted.style"
-export const SUPPORT_EMAIL = "hello@fitted.style"
+// Wardrobe gaps
+export const WARDROBE_GAP_OPTIONS = [
+  { value: "outerwear", label: "Outerwear & Jackets" },
+  { value: "trousers", label: "Trousers & Pants" },
+  { value: "shirts", label: "Shirts & Button-Downs" },
+  { value: "knitwear", label: "Knitwear & Sweaters" },
+  { value: "tshirts", label: "T-Shirts & Basics" },
+  { value: "footwear", label: "Footwear" },
+  { value: "accessories", label: "Accessories" },
+  { value: "denim", label: "Denim" },
+  { value: "tailoring", label: "Tailoring & Suiting" },
+] as const

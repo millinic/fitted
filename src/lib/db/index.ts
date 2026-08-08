@@ -1,32 +1,50 @@
 import { neon } from "@neondatabase/serverless"
-import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http"
+import { drizzle, NeonHttpDatabase } from "drizzle-orm/neon-http"
 import * as schema from "./schema"
 
-type Database = NeonHttpDatabase<typeof schema>
+function createDb(): NeonHttpDatabase<typeof schema> {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL environment variable is not set")
+  }
+  const sql = neon(databaseUrl)
+  return drizzle(sql, { schema })
+}
 
-let _db: Database | undefined
+let _db: NeonHttpDatabase<typeof schema> | null = null
 
-export function getDb(): Database {
+export function getDb(): NeonHttpDatabase<typeof schema> {
   if (!_db) {
-    const databaseUrl = process.env.DATABASE_URL
-    if (!databaseUrl) {
-      throw new Error("DATABASE_URL environment variable is not set")
-    }
-    const sql = neon(databaseUrl)
-    _db = drizzle(sql, { schema })
+    _db = createDb()
   }
   return _db
 }
 
-// For convenience: a lazy-initialized db export.
-// We use a getter so the actual connection is only created on first property access.
-export const db: Database = new Proxy({} as Database, {
-  get(_target, prop, receiver) {
-    const realDb = getDb()
-    const value = (realDb as any)[prop]
-    if (typeof value === "function") {
-      return value.bind(realDb)
-    }
-    return value
-  },
-})
+// For environments where DATABASE_URL is always set at import time (production),
+// this works fine. For build-time / edge cases where it may not be set,
+// we lazily initialize.
+export const db: NeonHttpDatabase<typeof schema> = new Proxy(
+  {} as NeonHttpDatabase<typeof schema>,
+  {
+    get(_target, prop, receiver) {
+      const instance = getDb()
+      const value = Reflect.get(instance, prop, receiver)
+      if (typeof value === "function") {
+        return value.bind(instance)
+      }
+      return value
+    },
+    has(_target, prop) {
+      return Reflect.has(getDb(), prop)
+    },
+    ownKeys() {
+      return Reflect.ownKeys(getDb())
+    },
+    getOwnPropertyDescriptor(_target, prop) {
+      return Reflect.getOwnPropertyDescriptor(getDb(), prop)
+    },
+    getPrototypeOf() {
+      return Reflect.getPrototypeOf(getDb())
+    },
+  }
+) as NeonHttpDatabase<typeof schema>

@@ -1,91 +1,116 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDb } from "@/lib/db"
-import { assessments, styleProfiles } from "@/lib/db/schema"
-import { generateStyleProfile } from "@/lib/ai"
-import type { AssessmentFormData, ApiResponse } from "@/types"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { styleAssessments } from "@/lib/db/schema"
+import { eq } from "drizzle-orm"
+import type { AssessmentFormData } from "@/types"
 
 export async function POST(request: NextRequest) {
   try {
-    const body: AssessmentFormData = await request.json()
-
-    if (!body.firstName || body.firstName.trim().length === 0) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "First name is required" },
-        { status: 400 }
-      )
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const db = getDb()
+    const body = await request.json()
+    const data: AssessmentFormData = body.data
 
-    const [assessment] = await db
-      .insert(assessments)
+    const inserted = await db
+      .insert(styleAssessments)
       .values({
-        firstName: body.firstName.trim(),
-        lastName: body.lastName?.trim() || null,
-        age: body.age,
-        location: body.location?.trim() || null,
-        heightFeet: body.heightFeet,
-        heightInches: body.heightInches,
-        waist: body.waist,
-        chest: body.chest,
-        inseam: body.inseam,
-        shoeSize: body.shoeSize || null,
-        typicalTopSize: body.typicalTopSize || null,
-        typicalBottomSize: body.typicalBottomSize || null,
-        bodyType: body.bodyType,
-        fitPreference: body.fitPreference,
-        brandFitReferences: body.brandFitReferences.length > 0 ? body.brandFitReferences : null,
-        lifestyleContext: body.lifestyleContext.length > 0 ? body.lifestyleContext : null,
-        lifestyleFrequency: Object.keys(body.lifestyleFrequency).length > 0 ? body.lifestyleFrequency : null,
-        styleGoal: body.styleGoal || null,
-        brandsLiked: body.brandsLiked.length > 0 ? body.brandsLiked : null,
-        styleReferences: body.styleReferences.length > 0 ? body.styleReferences : null,
-        colorPreferences: body.colorPreferences.length > 0 ? body.colorPreferences : null,
-        colorsToAvoid: body.colorsToAvoid.length > 0 ? body.colorsToAvoid : null,
-        wardrobeGaps: body.wardrobeGaps.length > 0 ? body.wardrobeGaps : null,
-        budgetRange: body.budgetRange,
-        monthlyBudget: body.monthlyBudget,
-        shoppingBehavior: body.shoppingBehavior || null,
-        additionalNotes: body.additionalNotes?.trim() || null,
+        userId: session.user.id,
+        waistSize: data.waistSize ?? null,
+        chestSize: data.chestSize ?? null,
+        inseam: data.inseam ?? null,
+        typicalShirtSize: data.typicalShirtSize ?? null,
+        typicalPantSize: data.typicalPantSize ?? null,
+        shoeSize: data.shoeSize ?? null,
+        height: data.height ?? null,
+        bodyType: data.bodyType ?? null,
+        fitPreference: data.fitPreference ?? null,
+        brandFitReferences: data.brandFitReferences ?? null,
+        brandsLiked: data.brandsLiked ?? null,
+        lifestyleContext: data.lifestyleContext ?? null,
+        lifestyleFrequency: data.lifestyleFrequency ?? null,
+        styleGoals: data.styleGoals ?? null,
+        styleReferences: data.styleReferences ?? null,
+        colorPreferences: data.colorPreferences ?? null,
+        wardrobeGaps: data.wardrobeGaps ?? null,
+        budgetRange: data.budgetRange ?? null,
+        shoppingBehavior: data.shoppingBehavior ?? null,
         completedAt: new Date(),
       })
-      .returning()
+      .returning({ id: styleAssessments.id })
 
-    let profileSummary
-    try {
-      profileSummary = await generateStyleProfile(body)
-    } catch (aiError: any) {
-      console.error("AI generation error:", aiError)
-      profileSummary = {
-        headline: `${body.firstName}'s Style Profile`,
-        body: `Based on your preferences for ${body.fitPreference || "comfortable"} fits, ${body.budgetRange || "thoughtful"} spending, and your interest in brands like ${body.brandsLiked?.slice(0, 3).join(", ") || "quality labels"}, we've identified a clear style direction for you. Your guide will include specific recommendations tailored to your ${body.bodyType || ""} build and ${body.lifestyleContext?.join(", ") || "everyday"} lifestyle.`,
-        archetype: "Modern Essential",
-        keyTraits: ["Quality-focused", "Versatile", "Confident", "Intentional"],
-        colorPalette: body.colorPreferences?.slice(0, 5) || ["Navy", "White", "Grey", "Black", "Tan"],
-        brandPreview: body.brandsLiked?.slice(0, 4) || ["COS", "APC", "Reiss", "Norse Projects"],
-      }
+    return NextResponse.json({
+      success: true,
+      data: { assessmentId: inserted[0].id },
+    })
+  } catch (error) {
+    console.error("Assessment creation error:", error)
+    return NextResponse.json({ error: "Failed to save assessment" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    await db.insert(styleProfiles).values({
-      assessmentId: assessment.id,
-      summaryHeadline: profileSummary.headline,
-      summaryBody: profileSummary.body,
-      styleArchetype: profileSummary.archetype,
-      keyTraits: profileSummary.keyTraits,
-      colorPalette: profileSummary.colorPalette,
-      brandRecommendationPreview: profileSummary.brandPreview,
-      rawAiResponse: profileSummary as any,
-    })
+    const body = await request.json()
+    const data: AssessmentFormData = body.data
+    const assessmentId: string = body.assessmentId
 
-    return NextResponse.json<ApiResponse<{ assessmentId: string }>>({
+    if (!assessmentId) {
+      return NextResponse.json({ error: "Assessment ID required" }, { status: 400 })
+    }
+
+    const existing = await db
+      .select({ userId: styleAssessments.userId })
+      .from(styleAssessments)
+      .where(eq(styleAssessments.id, assessmentId))
+      .limit(1)
+
+    if (!existing[0] || existing[0].userId !== session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+    }
+
+    await db
+      .update(styleAssessments)
+      .set({
+        waistSize: data.waistSize ?? null,
+        chestSize: data.chestSize ?? null,
+        inseam: data.inseam ?? null,
+        typicalShirtSize: data.typicalShirtSize ?? null,
+        typicalPantSize: data.typicalPantSize ?? null,
+        shoeSize: data.shoeSize ?? null,
+        height: data.height ?? null,
+        bodyType: data.bodyType ?? null,
+        fitPreference: data.fitPreference ?? null,
+        brandFitReferences: data.brandFitReferences ?? null,
+        brandsLiked: data.brandsLiked ?? null,
+        lifestyleContext: data.lifestyleContext ?? null,
+        lifestyleFrequency: data.lifestyleFrequency ?? null,
+        styleGoals: data.styleGoals ?? null,
+        styleReferences: data.styleReferences ?? null,
+        colorPreferences: data.colorPreferences ?? null,
+        wardrobeGaps: data.wardrobeGaps ?? null,
+        budgetRange: data.budgetRange ?? null,
+        shoppingBehavior: data.shoppingBehavior ?? null,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(styleAssessments.id, assessmentId))
+
+    return NextResponse.json({
       success: true,
-      data: { assessmentId: assessment.id },
+      data: { assessmentId },
     })
-  } catch (error: any) {
-    console.error("Assessment submission error:", error)
-    return NextResponse.json<ApiResponse>(
-      { success: false, error: error.message || "Internal server error" },
-      { status: 500 }
-    )
+  } catch (error) {
+    console.error("Assessment update error:", error)
+    return NextResponse.json({ error: "Failed to update assessment" }, { status: 500 })
   }
 }

@@ -2,18 +2,18 @@ import { cn } from "@/lib/utils"
 import type { HTMLAttributes } from "react"
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "elevated" | "bordered"
+  padding?: "sm" | "md" | "lg"
 }
 
-export function Card({ className, variant = "default", children, ...props }: CardProps) {
+export function Card({ className, padding = "md", children, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-xl p-6",
+        "bg-white rounded-xl border border-brand-200 shadow-sm",
         {
-          "bg-white": variant === "default",
-          "bg-white shadow-lg shadow-neutral-200/50": variant === "elevated",
-          "bg-white border border-neutral-200": variant === "bordered",
+          "p-4": padding === "sm",
+          "p-6": padding === "md",
+          "p-8": padding === "lg",
         },
         className
       )}

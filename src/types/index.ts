@@ -1,117 +1,21 @@
 import type {
-  GuideRecommendation,
-  GuideLookbook,
+  StyleProfileSummary,
+  StyleGuideContent,
+  StyleGuideSection,
+  StyleGuideItem,
+  LookbookEntry,
 } from "@/lib/db/schema"
 
-// ─── Assessment Types ───────────────────────────────────────────────────────
-
-export type BodyType =
-  | "slim"
-  | "athletic"
-  | "average"
-  | "broad"
-  | "stocky"
-  | "tall_slim"
-  | "tall_broad"
-
-export type FitPreference = "slim" | "tailored" | "relaxed" | "oversized"
-
-export type BudgetRange = "moderate" | "premium" | "luxury" | "mixed"
-
-export type GuideStatus =
-  | "generating"
-  | "pending_review"
-  | "approved"
-  | "revision_requested"
-  | "delivered"
-
-export interface AssessmentFormData {
-  // Basics
-  firstName: string
-  lastName: string
-  age: number | null
-  location: string
-
-  // Measurements
-  heightFeet: number | null
-  heightInches: number | null
-  waist: number | null
-  chest: number | null
-  inseam: number | null
-  shoeSize: string
-  typicalTopSize: string
-  typicalBottomSize: string
-
-  // Body & Fit
-  bodyType: BodyType | null
-  fitPreference: FitPreference | null
-
-  // Brand fit references
-  brandFitReferences: string[]
-
-  // Lifestyle
-  lifestyleContext: string[]
-  lifestyleFrequency: Record<string, string>
-
-  // Style preferences
-  styleGoal: string
-  brandsLiked: string[]
-  styleReferences: string[]
-  colorPreferences: string[]
-  colorsToAvoid: string[]
-  wardrobeGaps: string[]
-
-  // Budget & shopping
-  budgetRange: BudgetRange | null
-  monthlyBudget: number | null
-  shoppingBehavior: string
-
-  // Additional
-  additionalNotes: string
+// Re-export schema types for convenience
+export type {
+  StyleProfileSummary,
+  StyleGuideContent,
+  StyleGuideSection,
+  StyleGuideItem,
+  LookbookEntry,
 }
 
-// ─── Style Profile (pre-paywall) ────────────────────────────────────────────
-
-export interface StyleProfileSummary {
-  headline: string
-  body: string
-  archetype: string
-  keyTraits: string[]
-  colorPalette: string[]
-  brandPreview: string[]
-}
-
-// ─── Style Guide (post-payment) ─────────────────────────────────────────────
-
-export interface StyleGuideContent {
-  introduction: string
-  recommendations: GuideRecommendation[]
-  lookbooks: GuideLookbook[]
-  generalAdvice: string
-}
-
-// ─── Payment ────────────────────────────────────────────────────────────────
-
-export interface PaymentIntent {
-  clientSecret: string
-  paymentIntentId: string
-  amount: number
-  currency: string
-}
-
-// ─── Review Queue (Founder) ─────────────────────────────────────────────────
-
-export interface ReviewQueueItem {
-  guideId: string
-  assessmentId: string
-  userName: string
-  userEmail: string
-  status: GuideStatus
-  createdAt: Date
-  styleArchetype: string | null
-}
-
-// ─── Session Extension ──────────────────────────────────────────────────────
+// ── Session Extension ──────────────────────────────────
 
 declare module "next-auth" {
   interface Session {
@@ -130,18 +34,96 @@ declare module "next-auth/jwt" {
   }
 }
 
-// ─── API Response Types ─────────────────────────────────────────────────────
+// ── Assessment Types ───────────────────────────────────
+
+export interface AssessmentFormData {
+  // Measurements
+  waistSize?: number
+  chestSize?: number
+  inseam?: number
+  typicalShirtSize?: string
+  typicalPantSize?: string
+  shoeSize?: string
+  height?: string
+
+  // Body & Fit
+  bodyType?: BodyType
+  fitPreference?: FitPreference
+
+  // Brand References
+  brandFitReferences?: string[]
+  brandsLiked?: string[]
+
+  // Lifestyle & Context
+  lifestyleContext?: string[]
+  lifestyleFrequency?: Record<string, string>
+  styleGoals?: string[]
+  styleReferences?: string[]
+
+  // Preferences
+  colorPreferences?: string[]
+  wardrobeGaps?: string[]
+  budgetRange?: string
+  shoppingBehavior?: string
+}
+
+export type BodyType =
+  | "slim"
+  | "athletic"
+  | "average"
+  | "broad"
+  | "stocky"
+  | "tall_lean"
+
+export type FitPreference = "slim" | "tailored" | "relaxed" | "oversized"
+
+export type GuideStatus =
+  | "pending_generation"
+  | "generating"
+  | "pending_review"
+  | "revision_requested"
+  | "approved"
+  | "delivered"
+
+export type PaymentStatus = "pending" | "completed" | "failed" | "refunded"
+
+// ── Assessment Step Configuration ──────────────────────
+
+export interface AssessmentStep {
+  id: string
+  title: string
+  description: string
+  fields: string[]
+}
+
+// ── API Response Types ─────────────────────────────────
 
 export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
-  message?: string
 }
 
-export interface PaginatedResponse<T = unknown> extends ApiResponse<T[]> {
+export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   total: number
   page: number
   pageSize: number
-  hasMore: boolean
+}
+
+// ── Founder Review Types ───────────────────────────────
+
+export interface ReviewAction {
+  guideId: string
+  action: "approve" | "request_revision"
+  notes?: string
+}
+
+export interface ReviewQueueItem {
+  guideId: string
+  userId: string
+  userName?: string
+  userEmail?: string
+  status: GuideStatus
+  createdAt: Date
+  assessmentSummary: string
 }

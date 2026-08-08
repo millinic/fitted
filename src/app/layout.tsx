@@ -6,15 +6,19 @@ export const metadata: Metadata = {
   title: "Fitted — Your Personal Style Guide",
   description:
     "A personalized men's style platform that delivers an expert-curated wardrobe guide — so you can look consistently well-dressed without becoming fashion obsessed.",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://fitted.style"
-  ),
+  keywords: [
+    "men's style",
+    "personal styling",
+    "wardrobe guide",
+    "fashion consultation",
+    "style assessment",
+  ],
   openGraph: {
     title: "Fitted — Your Personal Style Guide",
     description:
-      "Expert-curated, personalized wardrobe recommendations for men who want to dress better without the effort.",
-    siteName: "Fitted",
+      "Get a personalized, expert-curated wardrobe guide tailored to your body, lifestyle, and budget.",
     type: "website",
+    siteName: "Fitted",
   },
 }
 
@@ -24,19 +28,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en">
       <body>
         <Providers>{children}</Providers>
       </body>

@@ -1,14 +1,12 @@
-import { notFound } from "next/navigation"
+import { redirect } from "next/navigation"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { styleAssessments, styleProfiles } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
-import { getDb } from "@/lib/db"
-import { assessments, styleProfiles } from "@/lib/db/schema"
 import { Header } from "@/components/layout/Header"
-import { StyleProfileView } from "@/components/profile/StyleProfileView"
-
-export const metadata = {
-  title: "Your Style Profile — Fitted",
-  description: "Your personalized style profile summary.",
-}
+import { Footer } from "@/components/layout/Footer"
+import { ProfileView } from "@/components/profile/ProfileView"
 
 export default async function ProfilePage({
   params,
@@ -16,42 +14,50 @@ export default async function ProfilePage({
   params: Promise<{ assessmentId: string }>
 }) {
   const { assessmentId } = await params
+  const session = await getServerSession(authOptions)
 
-  const db = getDb()
-
-  const assessment = await db.query.assessments.findFirst({
-    where: eq(assessments.id, assessmentId),
-  })
-
-  if (!assessment) {
-    notFound()
+  if (!session?.user?.id) {
+    redirect("/auth/signin?callbackUrl=/assessment")
   }
 
-  const profile = await db.query.styleProfiles.findFirst({
-    where: eq(styleProfiles.assessmentId, assessmentId),
-  })
+  const assessments = await db
+    .select()
+    .from(styleAssessments)
+    .where(eq(styleAssessments.id, assessmentId))
+    .limit(1)
 
-  if (!profile) {
-    notFound()
+  const assessment = assessments[0]
+
+  if (!assessment || assessment.userId !== session.user.id) {
+    redirect("/assessment")
   }
+
+  const existingProfiles = await db
+    .select()
+    .from(styleProfiles)
+    .where(eq(styleProfiles.assessmentId, assessmentId))
+    .limit(1)
+
+  const existingProfile = existingProfiles[0]
 
   return (
     <>
       <Header />
-      <main className="pt-16">
-        <StyleProfileView
+      <main className="min-h-[80vh]">
+        <ProfileView
           assessmentId={assessmentId}
-          firstName={assessment.firstName || "there"}
-          profile={{
-            headline: profile.summaryHeadline || "",
-            body: profile.summaryBody || "",
-            archetype: profile.styleArchetype || "",
-            keyTraits: (profile.keyTraits as string[]) || [],
-            colorPalette: (profile.colorPalette as string[]) || [],
-            brandPreview: (profile.brandRecommendationPreview as string[]) || [],
-          }}
+          userId={session.user.id}
+          existingProfile={
+            existingProfile
+              ? {
+                  id: existingProfile.id,
+                  summary: existingProfile.summaryContent,
+                }
+              : undefined
+          }
         />
       </main>
+      <Footer />
     </>
   )
 }
