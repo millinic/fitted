@@ -11,7 +11,6 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
-import type { AdapterAccount } from "@auth/core/adapters"
 
 // ─── NextAuth Required Tables ───────────────────────────────────────────────
 
@@ -31,7 +30,7 @@ export const accounts = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    type: text("type").$type<AdapterAccount["type"]>().notNull(),
+    type: text("type").$type<"oauth" | "oidc" | "email" | "webauthn">().notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("provider_account_id").notNull(),
     refresh_token: text("refresh_token"),
