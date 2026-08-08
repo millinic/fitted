@@ -32,7 +32,7 @@ export function GeneratingAnimation() {
 
     try {
       const result = await verifyPaymentAndGenerateGuide(sessionId)
-      if (result.success && result.data) {
+      if (result.success) {
         setGuideId(result.data.guideId)
       } else {
         setError(result.error || "Something went wrong")
