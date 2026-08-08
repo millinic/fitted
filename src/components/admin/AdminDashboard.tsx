@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
-import { SUPPORT_EMAIL } from "@/lib/constants"
 
 interface GuideRow {
   guideId: string
@@ -12,8 +11,8 @@ interface GuideRow {
   createdAt: Date
   founderNotes: string | null
   introduction: string | null
-  recommendations: unknown
-  lookbooks: unknown
+  recommendations: Record<string, unknown>[] | null
+  lookbooks: Record<string, unknown>[] | null
   generalAdvice: string | null
   firstName: string | null
   lastName: string | null
@@ -198,7 +197,6 @@ export function AdminDashboard({ guides, stats }: AdminDashboardProps) {
                         )}
                       </div>
 
-                      {/* Introduction Preview */}
                       {guide.introduction && (
                         <div>
                           <p className="text-sm font-medium text-neutral-700 mb-2">Introduction</p>
@@ -208,7 +206,6 @@ export function AdminDashboard({ guides, stats }: AdminDashboardProps) {
                         </div>
                       )}
 
-                      {/* Recommendations count */}
                       {guide.recommendations && (
                         <p className="text-sm text-neutral-500">
                           {Array.isArray(guide.recommendations)
@@ -217,7 +214,6 @@ export function AdminDashboard({ guides, stats }: AdminDashboardProps) {
                         </p>
                       )}
 
-                      {/* Founder Notes */}
                       {guide.founderNotes && (
                         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <p className="text-sm text-yellow-800">
@@ -238,7 +234,7 @@ export function AdminDashboard({ guides, stats }: AdminDashboardProps) {
                               }}
                               loading={actionLoading === guide.guideId}
                             >
-                              Approve & Deliver
+                              Approve &amp; Deliver
                             </Button>
                             <Button
                               size="sm"
