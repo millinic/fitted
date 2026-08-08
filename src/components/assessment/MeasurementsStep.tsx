@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { Input } from "@/components/ui/Input"
 import type { AssessmentFormData } from "@/types"
 
@@ -13,10 +14,10 @@ export function MeasurementsStep({ data, onChange }: Props) {
     <div className="space-y-8">
       <div>
         <h2 className="font-serif text-2xl font-semibold text-neutral-900 mb-2">
-          Measurements & Sizing
+          Measurements &amp; Sizing
         </h2>
         <p className="text-sm text-neutral-500">
-          Help us understand your fit. Approximate sizes are fine — we&apos;re
+          Help us understand your fit. Approximate sizes are fine — we are
           looking for a general picture, not precision.
         </p>
       </div>
@@ -25,28 +26,28 @@ export function MeasurementsStep({ data, onChange }: Props) {
         <Input
           id="height"
           label="Height"
-          placeholder='e.g., 5\'10" or 178cm'
+          placeholder="e.g., 5'10&quot; or 178cm"
           value={data.height}
           onChange={(e) => onChange({ height: e.target.value })}
         />
         <Input
           id="chestSize"
           label="Chest"
-          placeholder='e.g., 40" or M'
+          placeholder="e.g., 40&quot; or M"
           value={data.chestSize}
           onChange={(e) => onChange({ chestSize: e.target.value })}
         />
         <Input
           id="waistSize"
           label="Waist"
-          placeholder='e.g., 32"'
+          placeholder="e.g., 32&quot;"
           value={data.waistSize}
           onChange={(e) => onChange({ waistSize: e.target.value })}
         />
         <Input
           id="inseam"
           label="Inseam"
-          placeholder='e.g., 32"'
+          placeholder="e.g., 32&quot;"
           value={data.inseam}
           onChange={(e) => onChange({ inseam: e.target.value })}
         />
