@@ -82,7 +82,7 @@ export function StyleProfileView() {
 
     try {
       const result = await createCheckoutSession(id)
-      if (result.success && result.data) {
+      if (result.success) {
         window.location.href = result.data.sessionUrl
       } else {
         setError(result.error || "Failed to start checkout")
